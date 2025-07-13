@@ -1,0 +1,38 @@
+[workspace]
+
+members = ["search", "cli", "gui"]
+resolver = "2"
+
+[workspace.dependencies]
+search = { path = "search", version = "0.2" }
+
+atty = "0.2.14"
+color-eyre = "0.6.5"
+cote = { version = "0.17.1", features = [
+    "shell",
+    "log",
+] }
+iced = { version = "0.14.0-dev", features = [
+    "tokio",
+    "image",
+], git = "https://github.com/iced-rs/iced.git" }
+neure = "0.6.3"
+reqwest = { version = "0.12.22", features = [
+    "cookies",
+    "gzip",
+    "json",
+] }
+serde = { version = "1.0.219", features = [
+    "derive",
+] }
+serde_json = "1.0.140"
+tokio = { version = "1.46.1", features = [
+    "full",
+] }
+tracing-subscriber = { version = "0.3.19", features = [
+    "env-filter",
+] }
+chrono = "0.4"
+encoding_rs = "0.8"
+urlencoding = "2.1"
+winres = "0.1"

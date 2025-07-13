@@ -1,0 +1,15 @@
+[package]
+name = "cli"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+search.workspace = true
+color-eyre.workspace = true
+cote.workspace = true
+reqwest.workspace = true
+atty.workspace = true
+tokio.workspace = true
+
+[build-dependencies]
+winres.workspace = true
