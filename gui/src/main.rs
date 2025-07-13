@@ -17,12 +17,12 @@ use iced::{
 };
 
 use reqwest::{Client, cookie::Jar};
-use search::Tool;
 use search::cninfo;
 use search::hexun;
 use search::sina;
 use search::{QueryInput, Stock};
 use search::{Search, cfi};
+use search::{Tool, sohu};
 
 const APP_PNG: &[u8] = include_bytes!("../app.png");
 
@@ -191,8 +191,10 @@ impl Gui {
 
         let hexun = radio("和讯网", Tool::HeXun, self.tool_sel, Message::ToolSel);
 
+        let sohu = radio("搜狐网", Tool::SoHu, self.tool_sel, Message::ToolSel);
+
         let choices = container(
-            row![cninfo, sina, cfi, hexun]
+            row![cninfo, sina, cfi, hexun, sohu]
                 .padding(10)
                 .spacing(5)
                 .height(Length::Fill)
@@ -312,6 +314,14 @@ pub fn start_task(
             }
             Tool::HeXun => {
                 let tool = hexun::Hexun::init(builder).await;
+
+                if let Some(tool) = try_unwrap(tool, &mut send).await {
+                    process(tool, keywords, &mut send, delay).await;
+                    success = true;
+                }
+            }
+            Tool::SoHu => {
+                let tool = sohu::SoHu::init(builder).await;
 
                 if let Some(tool) = try_unwrap(tool, &mut send).await {
                     process(tool, keywords, &mut send, delay).await;

@@ -10,6 +10,7 @@ use search::cfi;
 use search::cninfo;
 use search::hexun;
 use search::sina;
+use search::sohu;
 use tokio::time::sleep;
 
 #[tokio::main]
@@ -102,6 +103,11 @@ impl Searcher {
             }
             Tool::HeXun => {
                 let tool = hexun::Hexun::init(builder).await?;
+
+                self.search(&tool).await?
+            }
+            Tool::SoHu => {
+                let tool = sohu::SoHu::init(builder).await?;
 
                 self.search(&tool).await?
             }

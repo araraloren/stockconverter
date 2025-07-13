@@ -2,6 +2,7 @@ pub mod cfi;
 pub mod cninfo;
 pub mod hexun;
 pub mod sina;
+pub mod sohu;
 
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Deserialize, serde::Serialize,
@@ -23,6 +24,7 @@ pub enum Tool {
     CnInfo,
     Cfi,
     HeXun,
+    SoHu,
 }
 
 impl Exchange {
