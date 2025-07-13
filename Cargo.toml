@@ -36,3 +36,13 @@ chrono = "0.4"
 encoding_rs = "0.8"
 urlencoding = "2.1"
 winres = "0.1"
+
+[profile.release]
+opt-level = "z"
+strip = true
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[profile.dev]
+debug = false
