@@ -6,11 +6,11 @@
 use std::{fmt::Debug, time::Duration};
 
 use iced::{
-    alignment::Horizontal,
+    alignment::{Horizontal, Vertical},
     futures::{SinkExt, Stream, channel::mpsc::Sender},
     widget::{
-        button, column, container, horizontal_rule, radio, row, text::LineHeight, text_editor,
-        text_input,
+        button, column, container, horizontal_rule, radio, row, slider, text, text::LineHeight,
+        text_editor, text_input,
     },
     window::{Settings, icon},
     *,
@@ -60,7 +60,7 @@ pub enum Message {
     InputAct(text_editor::Action),
     OutputAct(text_editor::Action),
     ToolSel(Tool),
-    SetDelay(String),
+    SetDelay(usize),
     SetPath(String),
     SetInfobar(String),
     StartTask,
@@ -98,10 +98,8 @@ impl Gui {
             Message::ToolSel(tool) => {
                 self.tool_sel = Some(tool);
             }
-            Message::SetDelay(changed) => {
-                if let Ok(num) = changed.parse::<usize>() {
-                    self.delay = num;
-                }
+            Message::SetDelay(value) => {
+                self.delay = value;
             }
             Message::ExportResult => {
                 let path = if self.path.is_empty() {
@@ -204,7 +202,14 @@ impl Gui {
         .height(Length::FillPortion(1))
         .style(container::bordered_box);
 
-        let delay = text_input("延迟", &format!("{}", self.delay)).on_input(Message::SetDelay);
+        let delay = row![
+            slider(1.0..=50.0, (self.delay / 50) as f64, |v| Message::SetDelay(
+                (v / 50.) as usize
+            )),
+            text(format!("延迟: {}毫秒", self.delay)),
+        ]
+        .spacing(5)
+        .align_y(Vertical::Center);
 
         let start = button("搜索").on_press_maybe(if self.task_started {
             None
