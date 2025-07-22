@@ -8,6 +8,7 @@ use std::{fmt::Debug, time::Duration};
 use iced::{
     alignment::{Horizontal, Vertical},
     futures::{SinkExt, Stream, channel::mpsc::Sender},
+    task::Handle,
     widget::{
         button, column, container, horizontal_rule, radio, row, slider, text, text::LineHeight,
         text_editor, text_input,
@@ -43,7 +44,7 @@ pub fn main() -> iced::Result {
 
 #[derive(Debug, Default)]
 pub struct Gui {
-    delay: usize,
+    delay: f64,
     path: String,
     input: text_editor::Content,
     tool_sel: Option<Tool>,
@@ -51,7 +52,7 @@ pub struct Gui {
     output: text_editor::Content,
     content: String,
     stocks: Vec<Stock>,
-    task_started: bool,
+    task_handle: Option<Handle>,
 }
 
 #[derive(Debug, Clone)]
@@ -60,10 +61,11 @@ pub enum Message {
     InputAct(text_editor::Action),
     OutputAct(text_editor::Action),
     ToolSel(Tool),
-    SetDelay(usize),
+    SetDelay(f64),
     SetPath(String),
     SetInfobar(String),
     StartTask,
+    StopTask,
     CleanOutput,
     ReportFailed((String, String)),
     AppendStock(Stock),
@@ -74,16 +76,20 @@ pub enum Message {
 impl Gui {
     pub fn new() -> Self {
         Self {
-            delay: 50,
+            delay: 1.0,
             path: String::default(),
             tool_sel: Some(Tool::CnInfo),
             input: text_editor::Content::default(),
             output: text_editor::Content::default(),
             infobar: String::default(),
             content: String::default(),
-            task_started: false,
+            task_handle: None,
             stocks: vec![],
         }
+    }
+
+    pub fn task_delay(&self) -> u64 {
+        (self.delay * 50.) as _
     }
 
     pub fn update(&mut self, message: Message) -> Task<Message> {
@@ -128,7 +134,7 @@ impl Gui {
                 self.path = path;
             }
             Message::TaskFinished(_) => {
-                self.task_started = false;
+                self.task_handle = None;
             }
             Message::CleanOutput => {
                 self.stocks.clear();
@@ -150,9 +156,9 @@ impl Gui {
                 self.infobar = value;
             }
             Message::StartTask => {
-                if !self.task_started {
+                if self.task_handle.is_none() {
                     let tool = self.tool_sel.unwrap_or_default();
-                    let delay = self.delay as u64;
+                    let delay = self.task_delay();
                     let keywords: Vec<String> = self
                         .input
                         .lines()
@@ -162,10 +168,17 @@ impl Gui {
 
                     self.content.clear();
                     self.stocks.clear();
-                    self.task_started = true;
 
-                    return Task::stream(start_task(tool, keywords, delay));
+                    let (task, handle) =
+                        Task::stream(start_task(tool, keywords, delay)).abortable();
+
+                    self.task_handle = Some(handle.abort_on_drop());
+
+                    return task;
                 }
+            }
+            Message::StopTask => {
+                self.task_handle.take();
             }
         }
         Task::none()
@@ -192,7 +205,7 @@ impl Gui {
         let sohu = radio("搜狐网", Tool::SoHu, self.tool_sel, Message::ToolSel);
 
         let choices = container(
-            row![cninfo, sina, cfi, hexun, sohu]
+            row![cninfo, sina, hexun, sohu, cfi]
                 .padding(10)
                 .spacing(5)
                 .height(Length::Fill)
@@ -203,19 +216,20 @@ impl Gui {
         .style(container::bordered_box);
 
         let delay = row![
-            slider(1.0..=50.0, (self.delay / 50) as f64, |v| Message::SetDelay(
-                (v / 50.) as usize
-            )),
-            text(format!("延迟: {}毫秒", self.delay)),
+            slider(1.0..=50.0, self.delay, Message::SetDelay),
+            text(format!("延迟: {}毫秒", self.task_delay())),
         ]
         .spacing(5)
         .align_y(Vertical::Center);
 
-        let start = button("搜索").on_press_maybe(if self.task_started {
+        let start = button("搜索").on_press_maybe(if self.task_handle.is_some() {
             None
         } else {
             Some(Message::StartTask)
         });
+
+        let stop =
+            button("停止").on_press_maybe(self.task_handle.as_ref().map(|_| Message::StopTask));
 
         let path = text_input("output.ebk", &self.path).on_input(Message::SetPath);
 
@@ -225,7 +239,7 @@ impl Gui {
             Some(Message::ExportResult)
         });
 
-        let operators = row![delay, start, path, export]
+        let operators = row![delay, start, stop, path, export]
             .spacing(5)
             .padding(5)
             .height(Length::FillPortion(1)); //.height(Length::Fixed(80.));
