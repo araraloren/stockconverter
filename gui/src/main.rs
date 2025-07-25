@@ -5,13 +5,13 @@
 
 use std::{fmt::Debug, time::Duration};
 
+use iced::widget::text;
 use iced::{
     alignment::{Horizontal, Vertical},
     futures::{SinkExt, Stream, channel::mpsc::Sender},
     task::Handle,
     widget::{
-        button, column, container, horizontal_rule, radio, row, slider, text, text::LineHeight,
-        text_editor, text_input,
+        button, column, container, horizontal_rule, radio, row, slider, text_editor, text_input,
     },
     window::{Settings, icon},
     *,
@@ -52,6 +52,8 @@ pub struct Gui {
     output: text_editor::Content,
     content: String,
     stocks: Vec<Stock>,
+    keyword_index: usize,
+    keyword_total: usize,
     task_handle: Option<Handle>,
 }
 
@@ -67,10 +69,15 @@ pub enum Message {
     StartTask,
     StopTask,
     CleanOutput,
-    ReportFailed((String, String)),
-    AppendStock(Stock),
+    TaskReport(TaskReport),
     TaskFinished(bool),
     ExportResult,
+}
+
+#[derive(Debug, Clone)]
+pub enum TaskReport {
+    Failed((String, String)),
+    Stock(Stock),
 }
 
 impl Gui {
@@ -83,6 +90,8 @@ impl Gui {
             output: text_editor::Content::default(),
             infobar: String::default(),
             content: String::default(),
+            keyword_index: 0,
+            keyword_total: 0,
             task_handle: None,
             stocks: vec![],
         }
@@ -141,16 +150,21 @@ impl Gui {
                 self.content.clear();
                 self.output = text_editor::Content::with_text(&self.content);
             }
-            Message::ReportFailed((keyword, msg)) => {
-                self.infobar = format!("搜索关键字 `{keyword}` 失败: {msg}");
-                self.content.push_str(&format!("{keyword}: 无可用的结果\n"));
-                self.output = text_editor::Content::with_text(&self.content);
-            }
-            Message::AppendStock(stock) => {
-                self.content
-                    .push_str(&format!("{} ==> {}\n", stock.name, stock.code));
-                self.output = text_editor::Content::with_text(&self.content);
-                self.stocks.push(stock);
+            Message::TaskReport(report) => {
+                self.keyword_index += 1;
+                match report {
+                    TaskReport::Failed((keyword, msg)) => {
+                        self.infobar = format!("搜索关键字 `{keyword}` 失败: {msg}");
+                        self.content.push_str(&format!("{keyword}: 无可用的结果\n"));
+                        self.output = text_editor::Content::with_text(&self.content);
+                    }
+                    TaskReport::Stock(stock) => {
+                        self.content
+                            .push_str(&format!("{} ==> {}\n", stock.name, stock.code));
+                        self.output = text_editor::Content::with_text(&self.content);
+                        self.stocks.push(stock);
+                    }
+                }
             }
             Message::SetInfobar(value) => {
                 self.infobar = value;
@@ -168,6 +182,8 @@ impl Gui {
 
                     self.content.clear();
                     self.stocks.clear();
+                    self.keyword_total = keywords.len();
+                    self.keyword_index = 0;
 
                     let (task, handle) =
                         Task::stream(start_task(tool, keywords, delay)).abortable();
@@ -244,13 +260,20 @@ impl Gui {
             .padding(5)
             .height(Length::FillPortion(1)); //.height(Length::Fixed(80.));
 
-        let infobar = text_input("状态栏", &self.infobar)
-            .line_height(LineHeight::Absolute(Pixels(12.0)))
-            .size(Pixels::from(12.0))
+        let mut infobar = text_input("状态栏", &self.infobar)
+            .size(Pixels::from(10.0))
             .align_x(Horizontal::Left)
             .width(Length::Fill);
 
-        let rule = horizontal_rule(2);
+        if self.task_handle.is_some() {
+            let task_progress = if self.keyword_total > 0 {
+                self.keyword_index as f32 / self.keyword_total as f32
+            } else {
+                0.
+            };
+
+            infobar = infobar.style(progress_style(task_progress));
+        }
 
         let main_container = container(
             column![
@@ -261,7 +284,7 @@ impl Gui {
                     .width(Length::Fill),
                 choices,
                 operators,
-                rule,
+                horizontal_rule(2),
                 infobar,
             ]
             .spacing(5)
@@ -379,15 +402,39 @@ where
                     Message::SetInfobar(format!("搜索关键字 `{keyword}` ====> {}", stock.code));
 
                 send.send(report).await.unwrap();
-                send.send(Message::AppendStock(stock)).await.unwrap();
-            }
-            Err(e) => {
-                send.send(Message::ReportFailed((keyword, e.to_string())))
+                send.send(Message::TaskReport(TaskReport::Stock(stock)))
                     .await
                     .unwrap();
+            }
+            Err(e) => {
+                send.send(Message::TaskReport(TaskReport::Failed((
+                    keyword,
+                    e.to_string(),
+                ))))
+                .await
+                .unwrap();
             }
         }
 
         tokio::time::sleep(Duration::from_millis(delay)).await;
+    }
+}
+
+pub fn progress_style(
+    progress: f32,
+) -> impl Fn(&Theme, iced::widget::text_input::Status) -> text_input::Style {
+    move |theme: &Theme, status| {
+        let mut style = text_input::default(theme, status);
+        let palette = theme.palette();
+
+        style.background = Background::Gradient(Gradient::Linear({
+            iced::gradient::Linear::new(iced::Radians::PI * 0.5)
+                .add_stop(0., palette.danger)
+                .add_stop(progress, palette.danger)
+                .add_stop(progress + 0.0001, palette.background)
+                .add_stop(1.0, palette.background)
+        }));
+
+        style
     }
 }
