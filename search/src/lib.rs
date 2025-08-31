@@ -145,10 +145,10 @@ impl Format for ShangHai {
 
 impl Valid for ShangHai {
     fn valid(&self, val: &str) -> Option<()> {
-        if let Some(v) = val.get(0..2) {
-            if matches!(v, "68" | "60") {
-                return Some(());
-            }
+        if let Some(v) = val.get(0..2)
+            && matches!(v, "68" | "60")
+        {
+            return Some(());
         }
 
         None
@@ -166,10 +166,10 @@ impl Format for ShenZhen {
 
 impl Valid for ShenZhen {
     fn valid(&self, val: &str) -> Option<()> {
-        if let Some(v) = val.get(0..2) {
-            if matches!(v, "00" | "30") {
-                return Some(());
-            }
+        if let Some(v) = val.get(0..2)
+            && matches!(v, "00" | "30")
+        {
+            return Some(());
         }
 
         None
@@ -187,10 +187,10 @@ impl Format for BeiJing {
 
 impl Valid for BeiJing {
     fn valid(&self, val: &str) -> Option<()> {
-        if let Some(v) = val.get(0..2) {
-            if matches!(v, "88" | "87" | "83" | "43") {
-                return Some(());
-            }
+        if let Some(v) = val.get(0..2)
+            && matches!(v, "88" | "87" | "83" | "43")
+        {
+            return Some(());
         }
 
         None

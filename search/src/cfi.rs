@@ -102,13 +102,14 @@ impl crate::Search for Cfi {
                 if curr_code.is_none() || curr_name.is_none() {
                     curr_code = Some(code);
                     curr_name = None;
-                } else if curr_code.is_some() && curr_name.is_some() {
-                    if let (Some(code), Some(name)) = (curr_code.take(), curr_name.take()) {
-                        outputs.push(Output {
-                            code: code.to_string(),
-                            name: name.to_string(),
-                        });
-                    }
+                } else if curr_code.is_some()
+                    && curr_name.is_some()
+                    && let (Some(code), Some(name)) = (curr_code.take(), curr_name.take())
+                {
+                    outputs.push(Output {
+                        code: code.to_string(),
+                        name: name.to_string(),
+                    });
                 }
             } else if let Ok(name) = ctx.ctor(&stock_name) {
                 if curr_code.is_some() {

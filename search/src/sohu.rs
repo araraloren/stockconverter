@@ -102,16 +102,16 @@ impl crate::Search for SoHu {
         let mut outputs = vec![];
 
         for item in array {
-            if let Some(array) = item.as_array().filter(|v| v.len() >= 3) {
-                if let (Some(code), Some(name)) = (
+            if let Some(array) = item.as_array().filter(|v| v.len() >= 3)
+                && let (Some(code), Some(name)) = (
                     array.get(1).and_then(|v| v.as_str()),
                     array.get(2).and_then(|v| v.as_str()),
-                ) {
-                    let code = code.to_string();
-                    let name = name.chars().filter(|v| !v.is_ascii()).collect::<String>();
+                )
+            {
+                let code = code.to_string();
+                let name = name.chars().filter(|v| !v.is_ascii()).collect::<String>();
 
-                    outputs.push(Output { code, name });
-                }
+                outputs.push(Output { code, name });
             }
         }
 
